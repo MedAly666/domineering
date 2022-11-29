@@ -1,0 +1,14 @@
+{
+  "name": "domineering",
+  "version": "0.0.1",
+  "description": "domineering assistant",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "domineering"
+  ],
+  "author": "MedAly",
+  "license": "MIT"
+}
