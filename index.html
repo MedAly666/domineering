@@ -1,23 +1,28 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Domineering</title>
-		<style type="text/css">
-			*{
-				margin:0;
-				padding:0;
-				box-sizing:border-box;
-			}
-		</style>
-
-        <script src="./app.js" defer ></script>
-	</head>
-	<body>
-		<canvas id="gameCanvas">
-			Sorry, your browser does not support canvas element .
-		</canvas>
-		<button onclick="initGame( document.querySelector('#gameCanvas') )">Restart</button>
-	</body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doomireenig</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main>
+        <h1>Domineering</h1>
+        <button onclick="window.location.href='./game/index.html'">New Game</button>
+        <button>Settings</button>
+        <button>About</button>
+    </main>
+    <dialog>
+        <h1>About</h1>
+        <p>
+            Domineering is a two-player game where players take turns placing horizontal or vertical dominoes on a grid. 
+            The first player who cannot make a move loses the game. <br />
+            <b>Created By :</b>
+            
+        </p>
+        
+        <button>Close</button>
+    </dialog>
+</body>
 </html>
