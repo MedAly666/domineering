@@ -5,24 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doomireenig</title>
     <link rel="stylesheet" href="./style.css">
+    <script src="./app.js"></script>
 </head>
 <body>
     <main>
         <h1>Domineering</h1>
         <button onclick="window.location.href='./game/index.html'">New Game</button>
-        <button>Settings</button>
-        <button>About</button>
+        <button onclick="openDialog('#setting-dialog')">Settings</button>
+        <button onclick="openDialog('#about-dialog')">About</button>
     </main>
-    <dialog>
+    <dialog id="about-dialog">
         <h1>About</h1>
         <p>
             Domineering is a two-player game where players take turns placing horizontal or vertical dominoes on a grid. 
             The first player who cannot make a move loses the game. <br />
             <b>Created By :</b>
+            <ul>
+                <li><a href="https://github.com/MedAly666">MedAly666</a></li>
+                <li><a href="https://github.com/snoussiabderrahman">snoussiabderrahman </a></li>
+            </ul>
             
         </p>
         
-        <button>Close</button>
+        <button onclick="closeDialog('#about-dialog')">Close</button>
+    </dialog>
+    <dialog id="setting-dialog">
+        <h1>Settings</h1>
+        <label for="">difficulty :</label>
+        <input type="number" name="" id="difficulty" min="4" max="10">7
+        <label for="">My Color :</label>
+        <input type="color" name="" id="mycolor">
+        <label for="">Opponent Color :</label>
+        <input type="color" name="" id="opponentcolor">
+        <button onclick="closeDialog('#setting-dialog')">Close</button>
+        <button onclick="openDialog('#setting-dialog')">Save</button>
     </dialog>
 </body>
 </html>
