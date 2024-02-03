@@ -108,7 +108,7 @@ function endGame(ply){
 }
 //
 function draw(row,col,ply){
-	ctx.fillStyle = ply === Player ? "#000000" : "#0000ff";
+	ctx.fillStyle = ply === Player ? "#ff0000" : "#0000ff";
 	ctx.fillRect(STEP * col + 0.5 ,STEP * row + 0.5, (ply === Player ? STEP : STEP*2) - 0.5, (ply === Player ? STEP*2:STEP) - 0.5);
 	board[row][col] = ply ;
 	board[ply === Player ? (row + 1) : row][ply === Player ? (col): (col + 1)] = ply;
@@ -138,6 +138,7 @@ function updateGame(event){
             endGame(false);
 		}
         if (getPossibilities(Bot) === 0) {
+			console.log('11111111');
             endGame(true);
         }
         bestPlay(DEPTH, Bot);
