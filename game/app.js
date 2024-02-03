@@ -1,10 +1,151 @@
+const DEPTH = 5;
+const INFINITY = Infinity;
+const Bot = 1;
+const Player = 2;
+const N = 8;
+const STEP = 70;
+
+const canvas = document.getElementById("gameCanvas");
+
+function placeItem(row, col, ply) {
+    let col_m = 0;
+    let row_m = 0;
+    if (ply === Player) {
+        row_m = 1;
+    } else {
+        col_m = 1;
+    }
+
+    if (row + row_m >= N || col + col_m >= N || board[row + row_m][col] !== 0 || board[row][col + col_m] !== 0) {
+        return false;
+    } else {
+        board[row][col] = ply;
+        board[row + row_m][col + col_m] = ply;
+    }
+    return true;
+}
+
+function removeItem(row, col, ply) {
+    if (ply === Player) {
+        board[row][col] = 0;
+        board[row + 1][col] = 0;
+    } else {
+        board[row][col] = 0;
+        board[row][col + 1] = 0;
+    }
+}
+
+function getPossibilities(ply) {
+    let sum = 0;
+    let row_m = ply === Player ? 1 : 0;
+    let col_m = ply === Player ? 0 : 1;
+
+    for (let i = 0; i < N - row_m; i++) {
+        for (let j = 0; j < N - col_m; j++) {
+            if (board[i][j] === 0 && board[i + row_m][j + col_m] === 0) {
+                sum += 1;
+            }
+        }
+    }
+
+    return sum;
+}
+
+function alphabeta(recursivity, ply, ri, rj, alpha, beta) {
+    if (recursivity === 0)
+        return getPossibilities(ply) - (ply === Bot ? getPossibilities(Player) : getPossibilities(Bot));
+
+    let fi = 0;
+    let fj = 0;
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            if (placeItem(i, j, ply)) {
+                let e = -alphabeta(recursivity - 1, ply === Bot ? Player : Bot, fi, fj, -beta, -alpha);
+                removeItem(i, j, ply);
+                if (e > alpha) {
+                    alpha = e;
+                    ri[0] = i;
+                    rj[0] = j;
+                    if (alpha >= beta) {
+                        return beta;
+                    }
+                }
+            }
+        }
+    }
+    return alpha;
+}
+
+function bestPlay(recursivity, ply) {
+    let i = [0];
+    let j = [0];
+    alphabeta(DEPTH, Bot, i, j, -INFINITY, INFINITY);
+    if(isPossible(i[0],j[0],Bot)){
+        placeItem(i[0], j[0], Bot);
+        draw(i[0],j[0],Bot);
+    }else{
+        for(let row = 0;row < N;row++)
+        {
+            for(let col = 0;col < N-1;col++)
+            {
+                if(isPossible(row,col,Bot))
+                {
+                    placeItem(row,col,Bot);
+                    draw(row,col,Bot);
+                    return;
+                }
+            }
+        }
+    }
+    
+}
 //
-const STEP = 50;
-initGame( document.querySelector("#gameCanvas") );
+function endGame(ply){
+    setTimeout(() => {
+        alert(ply ? "You won." : "You lost.");
+    }, 300);
+      
+}
+//
+function draw(row,col,ply){
+	ctx.fillStyle = ply === Player ? "#000000" : "#0000ff";
+	ctx.fillRect(STEP * col + 0.5 ,STEP * row + 0.5, (ply === Player ? STEP : STEP*2) - 0.5, (ply === Player ? STEP*2:STEP) - 0.5);
+	board[row][col] = ply ;
+	board[ply === Player ? (row + 1) : row][ply === Player ? (col): (col + 1)] = ply;
+}
+//
+function isPossible(row,col,ply){
+	if(board[row][col] !== 0){
+		return false ;
+	}
+	if(ply === Player && (row+1>7 || board[row + 1][col] !== 0)){
+		return false ;
+	}
+    if(ply === Bot && (col+1>7 || board[row][col + 1] !== 0)){
+		return false ;
+	}
+	return true ;
+}
+//
+function updateGame(event){
+	let col = Math.floor(event.pageX / STEP);
+	let row = Math.floor(event.pageY / STEP);
+
+	if(isPossible(row,col,Player)){
+        placeItem(row,col,Player);
+		draw(row,col,Player);
+		if(getPossibilities(Player) === 0){
+            endGame(false);
+		}
+        if (getPossibilities(Bot) === 0) {
+            endGame(true);
+        }
+        bestPlay(DEPTH, Bot);
+	}
+}
 //
 function initGame(canvas){
-	vertical = true ;
-	game = [
+    board = [
 		[0,0,0,0,0,0,0,0],
 		[0,0,0,0,0,0,0,0],
 		[0,0,0,0,0,0,0,0],
@@ -22,81 +163,22 @@ function initGame(canvas){
 	//draw the grid
 	for(let i = 0; i <= 8; i++ ){
 		ctx.moveTo(i*STEP+0.5,0.5);
-		ctx.lineTo(i*STEP+0.5,STEP*8+0.5)
+		ctx.lineTo(i*STEP+0.5,STEP*8+0.5);
 	}
 	for(let i = 0; i <= 8; i++ ){
 		ctx.moveTo(0.5,i*STEP+0.5);
-		ctx.lineTo(STEP*8+0.5,i*STEP+0.5)
+		ctx.lineTo(STEP*8+0.5,i*STEP+0.5);
 	}
-	ctx.strokeStyle = "#000"
-	ctx.stroke()
-	canvas.addEventListener("click",(e)=>{
-		updateGame(e)
-	},false)
+	ctx.strokeStyle = "#000";
+	ctx.stroke();
+    bestPlay(DEPTH,Bot);
+    
 }
-//
-function updateGame(event){
-	let col = Math.floor(event.pageX / STEP);
-	let row = Math.floor(event.pageY / STEP);
-	console.log("You clicked : { "+row+" , "+col+" }\nisPossible = " + isPossible(row,col,vertical) )
-	if(isPossible(row,col,vertical)){
-		draw(col,row,vertical);
-		if(check_end(vertical)){
-			endGame(vertical);
-		}
-		vertical = !vertical ;
-	}
-}
-//
-function check_end(){
-	for(i = 0;i<8;i++){
-		for(j = 0; j < 8; j++){
-			if( game[i][j]==0){
-				if( (i<7 && game[i+1][j]==0) || (i>0 && game[i-1][j]==0) || (j<7 && game[i][j+1]==0) || (j>0 && game[i][j-1]==0) ){
-					return false ;
-				}
-			}
-		}
-	}
-	return true ;
-}
-//
-function endGame(vertical){
-	alert(vertical?"V is a winner .":"H is a winner .")
-}
-//
-function draw(col,row,vertical){
-	ctx.fillStyle = vertical ? "#ff0000" : "#0000ff";
-	ctx.fillRect(STEP * col + 0.5 ,STEP * row + 0.5, (vertical ? STEP : STEP*2) - 0.5, (vertical?STEP*2:STEP) - 0.5);
-	game[row][col] = 1 ;
-	game[vertical ? (row + 1) : row][vertical ? (col): (col + 1)] = 1 ;
-	console.log("x = "+col+"\ny = "+row)
-	txt=""
-	for(i=0;i<8;i++){
-		for(j=0;j<8;j++){
-			txt += " "+game[i][j]+" ,";
-		}
-		txt += "\n"
-	}
-	console.log(txt)
-	
-}
-//
-function isPossible(row,col,vertical){
-	if(game[row][col]==1){
-		return false ;
-	}
-	if(vertical && row+1>7){
-		return false ;
-	}
-	if(!vertical && col+1>7){
-		return false ;
-	}
-	if(vertical && game[row + 1][col] == 1){
-		return false ;
-	}
-	if(!vertical && game[row][col + 1] == 1){
-		return false ;
-	}
-	return true ;
-}
+///
+initGame( document.querySelector("#gameCanvas") );
+
+canvas.addEventListener("click",(e)=>{
+    updateGame(e);
+},false)
+
+
