@@ -181,4 +181,3 @@ canvas.addEventListener("click",(e)=>{
     updateGame(e);
 },false)
 
-
