@@ -1,4 +1,4 @@
-const DEPTH = 5;
+const DEPTH = 5; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
@@ -6,6 +6,7 @@ const STEP = 70;
 
 const canvas = document.getElementById("gameCanvas");
 
+// A function that changes the content of the matrix depending on the game 
 function placeItem(row, col, ply) {
     let col_m = 0;
     let row_m = 0;
@@ -24,6 +25,7 @@ function placeItem(row, col, ply) {
     return true;
 }
 
+// function clears the game
 function removeItem(row, col, ply) {
     if (ply === PLAYER) {
         board[row][col] = 0;
@@ -34,6 +36,7 @@ function removeItem(row, col, ply) {
     }
 }
 
+// The number of possible plays for the player
 function getPossibilities(ply) {
     let sum = 0;
     let row_m = ply === PLAYER ? 1 : 0;
@@ -46,10 +49,10 @@ function getPossibilities(ply) {
             }
         }
     }
-
     return sum;
 }
 
+// Alphabeta algorithme
 function alphabeta(recursivity, ply, ri, rj, alpha, beta) {
     if (recursivity === 0)
         return getPossibilities(ply) - (ply === BOT ? getPossibilities(PLAYER) : getPossibilities(BOT));
@@ -75,7 +78,8 @@ function alphabeta(recursivity, ply, ri, rj, alpha, beta) {
     return alpha;
 }
 
-function bestPlay(recursivity, ply) {
+// A function that searches for the best game for the BOT and plays it
+function bestPlay(ply) {
     let i = [0];
     let j = [0];
     alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
@@ -83,6 +87,7 @@ function bestPlay(recursivity, ply) {
         placeItem(i[0], j[0], BOT);
         draw(i[0],j[0],BOT);
     }else{
+        // Remedy when something goes wrong
         for(let row = 0;row < N;row++)
         {
             for(let col = 0;col < N-1;col++)
@@ -98,21 +103,24 @@ function bestPlay(recursivity, ply) {
     }
     
 }
-//
+
+// A function that prints the winning player
 function endGame(ply){
     setTimeout(() => {
-        alert(ply ? "You won." : "You lost.");
+        alert(ply === PLAYER ? "You won." : "You lost.");
     }, 300);
       
 }
-//
+
+// A function that plots the game
 function draw(row,col,ply){
 	ctx.fillStyle = ply === PLAYER ? "#ff0000" : "#0000ff";
 	ctx.fillRect(STEP * col + 0.5 ,STEP * row + 0.5, (ply === PLAYER ? STEP : STEP*2) - 0.5, (ply === PLAYER ? STEP*2:STEP) - 0.5);
 	board[row][col] = ply ;
 	board[ply === PLAYER ? (row + 1) : row][ply === PLAYER ? (col): (col + 1)] = ply;
 }
-//
+
+// function return the true if the play possible else false
 function isPossible(row,col,ply){
 	if(board[row][col] !== 0){
 		return false ;
@@ -125,24 +133,30 @@ function isPossible(row,col,ply){
 	}
 	return true ;
 }
-//
+
+// Update the game on every click 
 function updateGame(event){
 	let col = Math.floor(event.pageX / STEP);
 	let row = Math.floor(event.pageY / STEP);
 
 	if(isPossible(row,col,PLAYER)){
+        if(getPossibilities(PLAYER) === 0){
+            endGame(BOT);
+		}
         placeItem(row,col,PLAYER);
 		draw(row,col,PLAYER);
-		if(getPossibilities(PLAYER) === 0){
-            endGame(false);
-		}
         if (getPossibilities(BOT) === 0) {
-            endGame(true);
+            endGame(PLAYER);
+        }else{
+            bestPlay(DEPTH, BOT);
+            if(getPossibilities(PLAYER) === 0){
+                endGame(BOT);
+            }
         }
-        bestPlay(DEPTH, BOT);
 	}
 }
-//
+
+// initial the board and the canvas
 function initGame(canvas){
     board = [
 		[0,0,0,0,0,0,0,0],
@@ -160,7 +174,7 @@ function initGame(canvas){
 	ctx = canvas.getContext("2d")
 	
 	//draw the grid
-	for(let i = 0; i <= 8; i++ ){
+	for(let i = 0; i <= N; i++ ){
 		ctx.moveTo(i*STEP+0.5,0.5);
 		ctx.lineTo(i*STEP+0.5,STEP*N+0.5);
 	}
@@ -170,10 +184,9 @@ function initGame(canvas){
 	}
 	ctx.strokeStyle = "#000";
 	ctx.stroke();
-    bestPlay(DEPTH,BOT);
-    
+    //bestPlay(BOT);
 }
-///
+
 initGame( document.querySelector("#gameCanvas") );
 
 canvas.addEventListener("click",(e)=>{
