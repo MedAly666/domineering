@@ -1,4 +1,4 @@
-const DEPTH = 7; 
+const DEPTH = 5; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
@@ -54,7 +54,7 @@ function getPossibilities(ply) {
 
 // Alphabeta algorithme
 function alphabeta(recursivity, ply, ri, rj, alpha, beta) {
-    if (recursivity === 0)
+    if (recursivity === 0 || getPossibilities(ply) === 0)
         return getPossibilities(ply) - (ply === BOT ? getPossibilities(PLAYER) : getPossibilities(BOT));
 
     let fi = 0;
@@ -83,25 +83,8 @@ function bestPlay(ply) {
     let i = [0];
     let j = [0];
     alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
-    if(isPossible(i[0],j[0],BOT)){
-        placeItem(i[0], j[0], BOT);
-        draw(i[0],j[0],BOT);
-    }else{
-        // Remedy when something goes wrong
-        for(let row = 0;row < N;row++)
-        {
-            for(let col = 0;col < N-1;col++)
-            {
-                if(isPossible(row,col,BOT))
-                {
-                    placeItem(row,col,BOT);
-                    draw(row,col,BOT);
-                    return;
-                }
-            }
-        }
-    }
-    
+    placeItem(i[0], j[0], BOT);
+    draw(i[0],j[0],BOT);   
 }
 
 // A function that prints the winning player
