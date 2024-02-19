@@ -1,10 +1,18 @@
-const DEPTH = 5; 
+const DEPTH = 6; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
 const STEP = 70;
 
 const canvas = document.getElementById("gameCanvas");
+
+function move(i, j, ply) {
+    this.i = i;
+    this.j = j;
+    this.ply = ply;
+}
+
+let movesSaved = new Array(DEPTH).fill(null);
 
 // A function that changes the content of the matrix depending on the game 
 function placeItem(row, col, ply) {
@@ -16,7 +24,7 @@ function placeItem(row, col, ply) {
         col_m = 1;
     }
 
-    if (row + row_m >= N || col + col_m >= N || board[row + row_m][col] !== 0 || board[row][col + col_m] !== 0) {
+    if (row + row_m >= N || col + col_m >= N || board[row + row_m][col] !== 0 || board[row][col + col_m] !== 0){
         return false;
     } else {
         board[row][col] = ply;
@@ -52,22 +60,38 @@ function getPossibilities(ply) {
     return sum;
 }
 
-// Alphabeta algorithme
-function alphabeta(recursivity, ply, ri, rj, alpha, beta) {
-    if (recursivity === 0 || getPossibilities(ply) === 0)
+// Alphabete with optimization for save the play
+function alphabeta(depth, ply, ri, rj, alpha, beta) {
+    if (depth === 0 || getPossibilities(ply) === 0)
         return getPossibilities(ply) - (ply === BOT ? getPossibilities(PLAYER) : getPossibilities(BOT));
 
     let fi = 0;
     let fj = 0;
+    if (movesSaved[depth - 1] !== null) {
+        if (placeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply)) {
+            let l = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
+            removeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply);
+            if (l > alpha) {
+                alpha = l;
+                ri[0] = movesSaved[depth - 1].i;
+                rj[0] = movesSaved[depth - 1].j;
+                if (alpha >= beta) {
+                    return beta;
+                }
+            }
+        }
+    }
+
     for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
             if (placeItem(i, j, ply)) {
-                let e = -alphabeta(recursivity - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
+                let l = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
                 removeItem(i, j, ply);
-                if (e > alpha) {
-                    alpha = e;
+                if (l > alpha) {
+                    alpha = l;
                     ri[0] = i;
                     rj[0] = j;
+                    movesSaved[depth - 1] = new move(i, j, ply);
                     if (alpha >= beta) {
                         return beta;
                     }
@@ -84,7 +108,7 @@ function bestPlay(ply) {
     let j = [0];
     alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
     placeItem(i[0], j[0], BOT);
-    draw(i[0],j[0],BOT);   
+    draw(i[0],j[0],BOT);
 }
 
 // A function that prints the winning player
@@ -121,20 +145,19 @@ function isPossible(row,col,ply){
 function updateGame(event){
 	let col = Math.floor(event.pageX / STEP);
 	let row = Math.floor(event.pageY / STEP);
-
+	
 	if(isPossible(row,col,PLAYER)){
-        if(getPossibilities(PLAYER) === 0){
+        if(getPossibilities(PLAYER) === 0)
             endGame(BOT);
-		}
+		
         placeItem(row,col,PLAYER);
 		draw(row,col,PLAYER);
         if (getPossibilities(BOT) === 0) {
             endGame(PLAYER);
         }else{
             bestPlay(DEPTH, BOT);
-            if(getPossibilities(PLAYER) === 0){
+            if(getPossibilities(PLAYER) === 0)
                 endGame(BOT);
-            }
         }
 	}
 }
@@ -151,6 +174,7 @@ function initGame(canvas){
 		[0,0,0,0,0,0,0,0],
 		[0,0,0,0,0,0,0,0]
 	]
+
 	//set canvas size
 	canvas.width = STEP*N+1 ;
 	canvas.height = STEP*N+1 ;
@@ -170,7 +194,7 @@ function initGame(canvas){
     //bestPlay(BOT);
 }
 
-initGame( document.querySelector("#gameCanvas") );
+initGame( document.querySelector("#gameCanvas"));
 
 canvas.addEventListener("click",(e)=>{
     updateGame(e);
