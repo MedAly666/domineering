@@ -212,19 +212,6 @@ function updateGame(event){
         }
 	}
 }
-// Générer une table de hachage de Zobrist pour une matrice 8x8
-function generateZobristTable() {
-    const table = [];
-    for (let i = 0; i < 8; i++) {
-        const row = [];
-        for (let j = 0; j < 8; j++) {
-            row.push(generateRandomNumber());
-        }
-        table.push(row);
-    }
-    return table;
-}
-
 // initial the board and the canvas
 function initGame(canvas){
     board = [
