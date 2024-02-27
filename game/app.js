@@ -6,7 +6,7 @@ const STEP = 70;
 
 const canvas = document.getElementById("gameCanvas");
 
-function move(i, j, ply) {
+function killingMove(i, j, ply) {
     this.i = i;
     this.j = j;
     this.ply = ply;
@@ -53,23 +53,72 @@ function getPossibilities(ply) {
     for (let i = 0; i < N - row_m; i++) {
         for (let j = 0; j < N - col_m; j++) {
             if (board[i][j] === 0 && board[i + row_m][j + col_m] === 0) {
-                sum += 1;
+                sum++;
+            }
+        }
+    }
+    return sum;
+}
+// function test place 
+function testPlace(row,col,ply){
+    if(ply === BOT){
+        if(row === N-1 && (board[row - 1][col] === 0 || board[row - 1][col + 1] === 0))
+        return false;
+        if(row === 0 && (board[row + 1][col] === 0 || board[row + 1][col + 1] === 0))
+        return false;
+        if(row > 0 && (board[row - 1][col] === 0 || board[row - 1][col + 1] === 0) || 
+           row < N-1 && (board[row + 1][col] === 0 || board[row + 1][col + 1] === 0))
+        return false;
+    }else{
+        if(col === N-1 && (board[row][col - 1] === 0 || board[row + 1][col - 1] === 0))
+        return false;
+        if(col === 0 && (board[row][col + 1] === 0 || board[row + 1][col + 1] === 0))
+        return false;
+        if(col > 0 && (board[row][col - 1] === 0 || board[row + 1][col - 1] === 0) ||
+           col < N-1 && (board[row][col + 1] === 0 || board[row + 1][col + 1] === 0))
+        return false;
+    }
+    return true;
+}
+
+// function savedMoves
+function numberPlayStored(ply){
+    let sum = 0;
+    if(ply === BOT){
+        for (let i = 0; i < N; i++) {
+            for (let j = 0; j < N - 1; j++) {
+                if (testPlace(i,j,BOT)) {
+                    sum++;
+                }
+            }
+        }
+    }else{
+        for (let i = 0; i < N - 1; i++) {
+            for (let j = 0; j < N; j++) {
+                if (testPlace(i,j,PLAYER)) {
+                    sum++;
+                }
             }
         }
     }
     return sum;
 }
 
-// Alphabete with optimization for save the play
-function alphabeta(depth, ply, ri, rj, alpha, beta) {
+// function eval
+function evaluate(ply){
+    return getPossibilities(ply) + numberPlayStored(ply);
+}
+
+// Alphabete with history
+function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     if (depth === 0 || getPossibilities(ply) === 0)
-        return getPossibilities(ply) - (ply === BOT ? getPossibilities(PLAYER) : getPossibilities(BOT));
+        return evaluate(ply) - (ply === BOT ? evaluate(PLAYER) : evaluate(BOT));
 
     let fi = 0;
     let fj = 0;
     if (movesSaved[depth - 1] !== null) {
         if (placeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply)) {
-            let l = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
+            let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
             removeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply);
             if (l > alpha) {
                 alpha = l;
@@ -85,13 +134,13 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
     for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
             if (placeItem(i, j, ply)) {
-                let l = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
+                let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
                 removeItem(i, j, ply);
                 if (l > alpha) {
                     alpha = l;
                     ri[0] = i;
                     rj[0] = j;
-                    movesSaved[depth - 1] = new move(i, j, ply);
+                    movesSaved[depth - 1] = new killingMove(i, j, ply);
                     if (alpha >= beta) {
                         return beta;
                     }
@@ -106,7 +155,8 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
 function bestPlay(ply) {
     let i = [0];
     let j = [0];
-    alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
+
+    alphabetakiller(DEPTH, BOT, i, j, -Infinity, Infinity);
     placeItem(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
 }
@@ -145,11 +195,11 @@ function isPossible(row,col,ply){
 function updateGame(event){
 	let col = Math.floor(event.pageX / STEP);
 	let row = Math.floor(event.pageY / STEP);
-	
+    
 	if(isPossible(row,col,PLAYER)){
         if(getPossibilities(PLAYER) === 0)
             endGame(BOT);
-		
+        
         placeItem(row,col,PLAYER);
 		draw(row,col,PLAYER);
         if (getPossibilities(BOT) === 0) {
@@ -158,8 +208,21 @@ function updateGame(event){
             bestPlay(DEPTH, BOT);
             if(getPossibilities(PLAYER) === 0)
                 endGame(BOT);
+            
         }
 	}
+}
+// Générer une table de hachage de Zobrist pour une matrice 8x8
+function generateZobristTable() {
+    const table = [];
+    for (let i = 0; i < 8; i++) {
+        const row = [];
+        for (let j = 0; j < 8; j++) {
+            row.push(generateRandomNumber());
+        }
+        table.push(row);
+    }
+    return table;
 }
 
 // initial the board and the canvas
