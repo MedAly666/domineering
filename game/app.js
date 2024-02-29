@@ -1,7 +1,7 @@
-const DEPTH = 5; 
+const DEPTH = 6; 
 const BOT = 1;
 const PLAYER = 2;
-const N = 8;
+const N = 4;
 const STEP = 70;
 
 const canvas = document.getElementById("gameCanvas");
