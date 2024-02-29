@@ -1,0 +1,71 @@
+@import url("./main.css");
+
+dialog {
+    width: 60%;
+
+    margin: auto;
+    border: none;
+    border-radius: 10px;
+    background-image: linear-gradient(90deg, rgb(33,33,33) 0%,transparent 59%),repeating-linear-gradient(45deg, rgba(168, 168, 168,0.1) 0px, rgba(168, 168, 168,0.1) 1px,transparent 1px, transparent 13px),repeating-linear-gradient(135deg, rgba(168, 168, 168,0.1) 0px, rgba(168, 168, 168,0.1) 1px,transparent 1px, transparent 13px),linear-gradient(90deg, rgb(33,33,33),rgb(33,33,33));
+    
+}
+
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+dialog[open] {
+    animation: modal-in 500ms forwards ease;
+}
+  
+@keyframes modal-in {
+    from {
+        translate: 0 -100%;
+        opacity: 0;
+    }
+}
+
+dialog .dialog-header {
+    width: 100%;
+    min-height: 1.5cm ;
+
+    padding: 10px;
+    border-bottom: solid 2px var(--primary-color);
+
+    padding: 5px;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 15px;
+}
+
+
+dialog .dialog-body {
+    padding:5px 10px  ;
+
+    overflow: auto;
+}
+
+dialog .dialog-footer {
+    min-height: 1.5cm ;
+
+    padding: 10px;
+    border-top: solid 2px var(--primary-color);
+
+    padding: 10px;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+@media screen and (max-width: 768px) {
+    dialog {
+        width: 100%;
+    }
+    
+}

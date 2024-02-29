@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doomireenig</title>
+
+    <link rel="stylesheet" href="./css/dialog.css">
+    <link rel="stylesheet" href="./style.css">
+    
+</head>
+<body>
+    <main>
+        <h1>Domineering</h1>
+        <button onclick="gameDialog.open();setup()">New Game</button>
+        <button onclick="settingsDialog.open()">Settings</button>
+        <button onclick="aboutDialog.open()">About</button>
+    
+    <dialog id="about-dialog">
+        <div class="dialog-header">
+            <h2>About</h2>
+        </div>
+        <div class="dialog-body">
+            <p>
+                Domineering is a two-player game where players take turns placing horizontal or vertical dominoes on a grid. 
+                The first player who cannot make a move loses the game. <br />
+                <b>Created By :</b>
+                <ul>
+                    <li><a href="https://github.com/MedAly666">MedAly666</a></li>
+                    <li><a href="https://github.com/snoussiabderrahman">snoussiabderrahman </a></li>
+                </ul>
+                
+            </p>
+        </div>
+        <div class="dialog-footer">
+            <button onclick="aboutDialog.close()">Close</button>
+        </div>
+    </dialog>
+    <dialog id="settings-dialog">
+        <div class="dialog-header">
+            <h1>Settings</h1>
+        </div>
+        <div class="dialog-body">
+            <label for="">difficulty :</label>
+            <input type="number" name="" id="difficulty" min="4" max="10">
+            <label for="">My Color :</label>
+            <input type="color" name="" id="mycolor">
+            <label for="">Opponent Color :</label>
+            <input type="color" name="" id="opponentcolor">
+        </div>
+        <div class="dialog-footer">
+            <button onclick="settingsDialog.close()">Close</button>
+            <button onclick="">Save</button>
+        </div>
+    </dialog>
+
+    <dialog id="game-dialog">
+        <div class="dialog-header">
+            <p>Score: <span id="score-container">000</span></p>
+            <button onclick="undo()">Undo</button>
+            <button onclick="setup()">Reload</button>
+            <button onclick="gameDialog.close()">Close</button>
+        </div>
+        <div class="dialog-body">
+            <canvas id="game" width="400" height="400">
+                Your browser does not support the HTML5 canvas tag.
+            </canvas>
+        </div>
+    </dialog>
+</main>
+</body>
+<script src="./index.js" defer></script>
+</html>
