@@ -106,7 +106,7 @@ function numberPlayStored(ply){
 
 // function eval
 function evaluate(ply){
-    return getPossibilities(ply) + numberPlayStored(ply);
+    return getPossibilities(ply) ;//+ numberPlayStored(ply);
 }
 
 // Alphabete with history
