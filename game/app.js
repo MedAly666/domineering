@@ -59,60 +59,11 @@ function getPossibilities(ply) {
     }
     return sum;
 }
-// function test place 
-function testPlace(row,col,ply){
-    if(ply === BOT){
-        if(row === N-1 && (board[row - 1][col] === 0 || board[row - 1][col + 1] === 0))
-        return false;
-        if(row === 0 && (board[row + 1][col] === 0 || board[row + 1][col + 1] === 0))
-        return false;
-        if(row > 0 && (board[row - 1][col] === 0 || board[row - 1][col + 1] === 0) || 
-           row < N-1 && (board[row + 1][col] === 0 || board[row + 1][col + 1] === 0))
-        return false;
-    }else{
-        if(col === N-1 && (board[row][col - 1] === 0 || board[row + 1][col - 1] === 0))
-        return false;
-        if(col === 0 && (board[row][col + 1] === 0 || board[row + 1][col + 1] === 0))
-        return false;
-        if(col > 0 && (board[row][col - 1] === 0 || board[row + 1][col - 1] === 0) ||
-           col < N-1 && (board[row][col + 1] === 0 || board[row + 1][col + 1] === 0))
-        return false;
-    }
-    return true;
-}
-
-// function savedMoves
-function numberPlayStored(ply){
-    let sum = 0;
-    if(ply === BOT){
-        for (let i = 0; i < N; i++) {
-            for (let j = 0; j < N - 1; j++) {
-                if (testPlace(i,j,BOT)) {
-                    sum++;
-                }
-            }
-        }
-    }else{
-        for (let i = 0; i < N - 1; i++) {
-            for (let j = 0; j < N; j++) {
-                if (testPlace(i,j,PLAYER)) {
-                    sum++;
-                }
-            }
-        }
-    }
-    return sum;
-}
-
-// function eval
-function evaluate(ply){
-    return getPossibilities(ply) ;//+ numberPlayStored(ply);
-}
 
 // Alphabete with history
 function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     if (depth === 0 || getPossibilities(ply) === 0)
-        return evaluate(ply) - (ply === BOT ? evaluate(PLAYER) : evaluate(BOT));
+        return getPossibilities(ply)(ply) - (ply === BOT ? getPossibilities(ply)(PLAYER) : getPossibilities(ply)(BOT));
 
     let fi = 0;
     let fj = 0;
