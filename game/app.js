@@ -63,7 +63,7 @@ function getPossibilities(ply) {
 // Alphabete with history
 function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     if (depth === 0 || getPossibilities(ply) === 0)
-        return getPossibilities(ply)(ply) - (ply === BOT ? getPossibilities(ply)(PLAYER) : getPossibilities(ply)(BOT));
+        return getPossibilities(ply) - (ply === BOT ? getPossibilities(PLAYER) : getPossibilities(BOT));
 
     let fi = 0;
     let fj = 0;
