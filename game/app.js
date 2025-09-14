@@ -1,5 +1,5 @@
 
-const DEPTH = 6; 
+const DEPTH = 7; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
