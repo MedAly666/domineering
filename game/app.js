@@ -92,7 +92,28 @@ function undoPlace(row, col, ply) {
     }
 }
 
+// Map keyed on string of BigInt hash
+function ttKey(hashBigInt) {
+return hashBigInt.toString();
+}
 
+
+function ttLookup(alpha, beta, depth) {
+const key = ttKey(currentHash);
+if (!transpositionTable.has(key)) return null;
+const e = transpositionTable.get(key);
+if (e.depth < depth) return null; // stored value too shallow
+if (e.flag === "EXACT") return e.value;
+if (e.flag === "LOWER" && e.value >= beta) return e.value;
+if (e.flag === "UPPER" && e.value <= alpha) return e.value;
+return null; // cannot use stored bound
+}
+
+
+function ttStore(value, depth, flag, bestMove) {
+const key = ttKey(currentHash);
+transpositionTable.set(key, { value, depth, flag, bestMove });
+}
 
 
 // The number of possible plays for the player
