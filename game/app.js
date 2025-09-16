@@ -292,6 +292,66 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     return alpha;
 }
 
+function alphabeta(depth, ply, ri, rj, alpha, beta) {
+
+
+    // Transposition lookup
+    const ttVal = ttLookup(alpha, beta, depth);
+    if (ttVal !== null) return ttVal;
+
+
+    let bestVal = -Infinity;
+    let bestMove = null;
+
+
+    // Try TT-best move first if present
+    const key = ttKey(currentHash);
+    if (transpositionTable.has(key)) {
+        const e = transpositionTable.get(key);
+        if (e.bestMove && isPossible(e.bestMove.i, e.bestMove.j, ply)) {
+            const {i,j} = e.bestMove;
+            tryPlace(i,j,ply);
+            const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0],[0], -beta, -alpha);
+            undoPlace(i,j,ply);
+            if (val > bestVal) { bestVal = val; bestMove = {i,j}; }
+            if (bestVal > alpha) { alpha = bestVal; historyTable[i][j] += depth * depth; }
+            if (alpha >= beta) {
+                ttStore(beta, depth, "LOWER", {i,j});
+                killerMoves[depth].unshift({i,j});
+                if (killerMoves[depth].length > 2) killerMoves[depth].pop();
+                    return beta;
+            }
+        }
+    }
+
+
+    const moves = generateMovesOrdered(ply, depth);
+    for (const m of moves) {
+        const i = m.i, j = m.j;
+        tryPlace(i, j, ply);
+        const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0],[0], -beta, -alpha);
+        undoPlace(i, j, ply);
+
+
+        if (val > bestVal) { bestVal = val; bestMove = {i,j}; }
+        if (val > alpha) {
+            alpha = val;
+            historyTable[i][j] += depth * depth;
+        }
+        if (alpha >= beta) {
+            ttStore(beta, depth, "LOWER", bestMove);
+            killerMoves[depth].unshift({i,j});
+            if (killerMoves[depth].length > 2) killerMoves[depth].pop();
+                return beta;
+        }
+    }
+
+
+    ttStore(alpha, depth, "EXACT", bestMove);
+    if (bestMove) { ri[0] = bestMove.i; rj[0] = bestMove.j; }
+        return alpha;
+}
+
 // A function that searches for the best game for the BOT and plays it
 function bestPlay() {
     let i = [0];
