@@ -26,7 +26,6 @@ function rand64BigInt() {
     return (BigInt(a[0]) << 32n) ^ BigInt(a[1]);
 }
 
-
 // Initialize zobrist table with BigInt values
 function initZobristTable() {
     zobristTable = Array.from({ length: N }, () =>
@@ -39,13 +38,11 @@ function initZobristTable() {
     currentHash = 0n; // reset
 }
 
-
 // Update the Zobrist hash when placing or removing an item
 function updateZobristHash(row, col, ply) {
     // ply must be 0,1,2
     currentHash ^= zobristTable[row][col][ply];
 }
-
 
 // A function that changes the content of the matrix depending on the game 
 function placeItem(row, col, ply) {
@@ -70,8 +67,16 @@ function placeItem(row, col, ply) {
     return true;
 }
 
+// Try to place a domino only if it is legal. Returns true if placed.
+function tryPlace(row, col, ply) {
+    if (!isPossible(row, col, ply)) return false;
+    placeItem(row, col, ply); // this already updates board and zobrist hash
+    return true;
+}
+
+
 // function clears the game
-function removeItem(row, col, ply) {
+function undoPlace(row, col, ply) {
     if (ply === PLAYER) {
         // Update Zobrist hash for removing the item
         updateZobristHash(row, col, ply);
@@ -165,9 +170,9 @@ function quiescenceSearch(alpha, beta, ply) {
     for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
             if (isTacticalMove(i, j, ply)) {
-                if (placeItem(i, j, ply)) {
+                if (tryPlace(i, j, ply)) {
                     let score = -quiescenceSearch(-beta, -alpha, ply === BOT ? PLAYER : BOT);
-                    removeItem(i, j, ply);
+                    undoPlace(i, j, ply);
                     if (score >= beta) {
                         return beta;  // Beta cutoff
                     }
@@ -203,9 +208,9 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     let fi = 0;
     let fj = 0;
     if (movesSaved[depth - 1] !== null) {
-        if (placeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply)) {
+        if (tryPlace(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply)) {
             let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
-            removeItem(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply);
+            undoPlace(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply);
             if (l > alpha) {
                 alpha = l;
                 ri[0] = movesSaved[depth - 1].i;
@@ -220,9 +225,9 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
 
     for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
-            if (placeItem(i, j, ply)) {
+            if (tryPlace(i, j, ply)) {
                 let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
-                removeItem(i, j, ply);
+                undoPlace(i, j, ply);
                 if (l > alpha) {
                     alpha = l;
                     ri[0] = i;
@@ -248,7 +253,7 @@ function bestPlay() {
 
     alphabetakiller(DEPTH, BOT, i, j, -Infinity, Infinity);
     transpositionTable.clear();
-    placeItem(i[0], j[0], BOT);
+    tryPlace(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
 }
 
