@@ -17,7 +17,35 @@ let movesSaved = new Array(DEPTH).fill(null);
 let transpositionTable = new Map();
 let currentHash = 0;
 let zobristTable = [];
-const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (1), BOT (2)
+const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (2), BOT (1)
+
+// Zobrist: generate 64-bit BigInt random using crypto
+function rand64BigInt() {
+    const a = crypto.getRandomValues(new Uint32Array(2));
+    // combine into a 64-bit BigInt
+    return (BigInt(a[0]) << 32n) ^ BigInt(a[1]);
+}
+
+
+// Initialize zobrist table with BigInt values
+function initZobristTable() {
+    zobristTable = Array.from({ length: N }, () =>
+        Array.from({ length: N }, () =>
+            Array.from({ length: MAX_PLAYER_TYPES }, () =>
+                rand64BigInt()
+            )
+        )
+    );
+    currentHash = 0n; // reset
+}
+
+
+// Update the Zobrist hash when placing or removing an item
+function updateZobristHash(row, col, ply) {
+    // ply must be 0,1,2
+    currentHash ^= zobristTable[row][col][ply];
+}
+
 
 // A function that changes the content of the matrix depending on the game 
 function placeItem(row, col, ply) {
@@ -59,21 +87,8 @@ function removeItem(row, col, ply) {
     }
 }
 
-// Update the Zobrist hash when placing or removing an item
-function updateZobristHash(row, col, ply) {
-    currentHash ^= zobristTable[row][col][ply];
-}
 
-// Zobrist table initialization
-function initZobristTable() {
-    zobristTable = Array.from({ length: N }, () => 
-        Array.from({ length: N }, () => 
-            Array.from({ length: MAX_PLAYER_TYPES }, () => 
-                Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-            )
-        )
-    );
-}
+
 
 // The number of possible plays for the player
 function getPossibilities(ply) {
