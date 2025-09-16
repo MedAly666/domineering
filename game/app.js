@@ -180,9 +180,9 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     }
 
     if (depth === 0 || getPossibilities(ply) === 0) {
-        let eval = evaluate(ply);
-        transpositionTable.set(currentHash, eval);  // Cache the evaluation
-        return eval;
+        let evalt = evaluate(ply);
+        transpositionTable.set(currentHash, evalt);  // Cache the evaluation
+        return evalt;
     }
 
     let fi = 0;
@@ -318,5 +318,5 @@ canvas.addEventListener("click", (e) => {
     const startTime = new Date();
     updateGame(e);
     const endTime = new Date();
-    console.log("temps d'execution :",endTime.getSeconds() - startTime.getSeconds());
+    //console.log("temps d'execution :",endTime.getSeconds() - startTime.getSeconds());
 });
