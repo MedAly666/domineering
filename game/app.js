@@ -19,6 +19,31 @@ let currentHash = 0;
 let zobristTable = [];
 const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (2), BOT (1)
 
+// Globals
+let killerMoves = Array.from({length: DEPTH + 1}, () => []);
+let historyTable = Array.from({length: N}, () => Array(N).fill(0));
+
+
+// Generate legal moves then order them by heuristics
+function generateMovesOrdered(ply, depth) {
+    const moves = [];
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            if (!isPossible(i, j, ply)) continue;
+            let score = 0;
+            // history heuristic
+            score += historyTable[i][j];
+            // killer heuristic
+            if (killerMoves[depth] && killerMoves[depth].some(k => k.i === i && k.j === j)) score += 100000;
+            // tactical bias
+            if (isTacticalMove(i, j, ply)) score += 500;
+            moves.push({i, j, score});
+        }
+    }
+    moves.sort((a,b) => b.score - a.score);
+    return moves;
+}
+
 // Zobrist: generate 64-bit BigInt random using crypto
 function rand64BigInt() {
     const a = crypto.getRandomValues(new Uint32Array(2));
