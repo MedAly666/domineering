@@ -1,5 +1,5 @@
 
-const DEPTH = 6; 
+const DEPTH = 5; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
@@ -278,7 +278,7 @@ function isTacticalMove(i, j, ply) {
 }
 
 
-function quiescenceSearch(alpha, beta, ply, qDepth = 6) {
+function quiescenceSearch(alpha, beta, ply, qDepth = DEPTH) {
     if (PROFILER_ENABLED) profiler.qNodes++;
 
     if (qDepth <= 0) return evaluate(ply);
@@ -528,7 +528,7 @@ function isPossible(row, col, ply){
     }
     return true ;
 }
-
+/*
 // Update the game on every click 
 function updateGame(event){
     let col = Math.floor(event.pageX / STEP);
@@ -549,7 +549,55 @@ function updateGame(event){
                 {endGame(BOT);transpositionTable.clear();}
         }
     }
+}*/
+
+// Flag to avoid user input while the bot is thinking
+let thinking = false;
+
+/*
+  updateGame - handles a player click, plays player's move first,
+  then calls the engine to compute and play the bot's move.
+  Comments in English (commit messages should be in English).
+*/
+function updateGame(event) {
+    // If engine is thinking, ignore user clicks
+    if (thinking) return;
+    
+    let col = Math.floor(event.pageX / STEP);
+    let row = Math.floor(event.pageY / STEP);
+
+    // Check player move legality
+    if (!isPossible(row, col, PLAYER)) return;
+    console.log("Player clicked at:");
+    // Place player's move and render (placeItem updates board and zobrist)
+    placeItem(row, col, PLAYER);
+    draw(row, col, PLAYER); // draw should NOT mutate board
+
+    // After player's move, check if BOT has any moves; if not, player wins
+    if (getPossibilities(BOT) === 0) {
+        endGame(PLAYER);
+        return;
+    }
+
+    // Now call the search and play the bot's move.
+    // Block further clicks while the engine calculates.
+    thinking = true;
+    try {
+    // searchAndPlay is expected to be synchronous here (blocking).
+    // If it's asynchronous, see the async version below.
+    searchAndPlay(); // this should play the BOT move (place & draw)
+    } catch (err) {
+        console.error("searchAndPlay error:", err);
+    } finally {
+        thinking = false;
+    }
+
+    // After bot move, check if player has moves; if not BOT wins
+    if (getPossibilities(PLAYER) === 0) {
+    endGame(BOT);
+    }
 }
+
 
 // initial the board and the canvas
 function initGame(canvas){
