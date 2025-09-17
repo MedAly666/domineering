@@ -1,9 +1,13 @@
 
-const DEPTH = 7; 
+const DEPTH = 5; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
 const STEP = 70;
+const MAX_TT_SIZE = 50000;
+
+// Optionally avoid storing very shallow nodes to save space:
+const MIN_STORE_DEPTH = 1; // store only nodes with depth >= 1
 
 const canvas = document.getElementById("gameCanvas");
 
@@ -117,28 +121,62 @@ function undoPlace(row, col, ply) {
     }
 }
 
-// Map keyed on string of BigInt hash
+// Helper to generate string key from BigInt zobrist hash
 function ttKey(hashBigInt) {
-return hashBigInt.toString();
+    return hashBigInt.toString();
 }
 
-
+// Lookup in transposition table with LRU refresh.
+// Returns stored usable value or null.
 function ttLookup(alpha, beta, depth) {
-const key = ttKey(currentHash);
-if (!transpositionTable.has(key)) return null;
-const e = transpositionTable.get(key);
-if (e.depth < depth) return null; // stored value too shallow
-if (e.flag === "EXACT") return e.value;
-if (e.flag === "LOWER" && e.value >= beta) return e.value;
-if (e.flag === "UPPER" && e.value <= alpha) return e.value;
-return null; // cannot use stored bound
+    const key = ttKey(currentHash);
+    if (!transpositionTable.has(key)) return null;
+
+    // Get entry
+    const e = transpositionTable.get(key);
+
+    // If stored entry too shallow, treat as miss
+    if (e.depth < depth) return null;
+
+    // Move entry to the end to mark it as recently used:
+    // (delete + set is a common LRU trick with Map)
+    transpositionTable.delete(key);
+    transpositionTable.set(key, e);
+
+    // Interpret flags
+    if (e.flag === "EXACT") return e.value;
+    if (e.flag === "LOWER" && e.value >= beta) return e.value;
+    if (e.flag === "UPPER" && e.value <= alpha) return e.value;
+
+    // Not usable bound for this alpha/beta window
+    return null;
 }
 
-
+// Store entry in TT while enforcing capacity and optional depth threshold.
 function ttStore(value, depth, flag, bestMove) {
-const key = ttKey(currentHash);
-transpositionTable.set(key, { value, depth, flag, bestMove });
+    // Optionally avoid storing very shallow nodes
+    if (depth < MIN_STORE_DEPTH) return;
+
+    const key = ttKey(currentHash);
+
+    // If key exists, remove first so that new insertion moves it to the end (recent).
+    if (transpositionTable.has(key)) {
+        transpositionTable.delete(key);
+    }
+
+    // Insert as most-recent
+    transpositionTable.set(key, { value, depth, flag, bestMove });
+
+    // Enforce size limit: delete oldest inserted entry when exceeded
+    if (transpositionTable.size > MAX_TT_SIZE) {
+        // Map preserves insertion order. keys().next().value gives the oldest key.
+        const oldestKey = transpositionTable.keys().next().value;
+        if (oldestKey !== undefined) {
+            transpositionTable.delete(oldestKey);
+        }
+    }
 }
+
 
 
 // The number of possible plays for the player
@@ -233,6 +271,35 @@ function quiescenceSearch(alpha, beta, ply) {
     return alpha;
 }
 
+// Ensure killerMoves exists per-depth and add a killer move safely.
+// Keeps at most 2 killer moves per depth.
+function addKiller(depth, move) {
+    // clamp depth to a safe integer index (non-negative)
+    let idx = Math.max(0, Math.floor(depth));
+
+    // If killerMoves isn't initialized or is too small, grow it dynamically
+    if (!Array.isArray(killerMoves)) {
+        killerMoves = [];
+    }
+    while (killerMoves.length <= idx) {
+        killerMoves.push([]); // initialize empty arrays up to idx
+    }
+
+    // Ensure the inner entry is an array
+    if (!Array.isArray(killerMoves[idx])) {
+        killerMoves[idx] = [];
+    }
+
+    // Insert the new killer move at the front if not duplicate
+    // Optionally avoid duplicates:
+    if (!killerMoves[idx].some(k => k.i === move.i && k.j === move.j)) {
+        killerMoves[idx].unshift(move);
+    }
+
+    // Keep only top 2 killers
+    if (killerMoves[idx].length > 2) killerMoves[idx].length = 2;
+}
+
 // Alphabete with Zobrist hashing
 function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     // Si on atteint la profondeur maximale, on passe à la quiescence search
@@ -293,16 +360,14 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
 }
 
 function alphabeta(depth, ply, ri, rj, alpha, beta) {
-
+    console.log('tt size', transpositionTable.size);
 
     // Transposition lookup
     const ttVal = ttLookup(alpha, beta, depth);
     if (ttVal !== null) return ttVal;
 
-
     let bestVal = -Infinity;
     let bestMove = null;
-
 
     // Try TT-best move first if present
     const key = ttKey(currentHash);
@@ -317,13 +382,12 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
             if (bestVal > alpha) { alpha = bestVal; historyTable[i][j] += depth * depth; }
             if (alpha >= beta) {
                 ttStore(beta, depth, "LOWER", {i,j});
-                killerMoves[depth].unshift({i,j});
+                addKiller(depth, { i, j });
                 if (killerMoves[depth].length > 2) killerMoves[depth].pop();
                     return beta;
             }
         }
     }
-
 
     const moves = generateMovesOrdered(ply, depth);
     for (const m of moves) {
@@ -340,12 +404,10 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
         }
         if (alpha >= beta) {
             ttStore(beta, depth, "LOWER", bestMove);
-            killerMoves[depth].unshift({i,j});
-            if (killerMoves[depth].length > 2) killerMoves[depth].pop();
-                return beta;
+            addKiller(depth, { i, j });
+            return beta;
         }
     }
-
 
     ttStore(alpha, depth, "EXACT", bestMove);
     if (bestMove) { ri[0] = bestMove.i; rj[0] = bestMove.j; }
@@ -357,7 +419,7 @@ function bestPlay() {
     let i = [0];
     let j = [0];
 
-    alphabetakiller(DEPTH, BOT, i, j, -Infinity, Infinity);
+    alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
     transpositionTable.clear();
     tryPlace(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
