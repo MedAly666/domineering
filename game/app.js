@@ -1,10 +1,10 @@
 
-const DEPTH = 5; 
+const DEPTH = 6; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
 const STEP = 70;
-const MAX_TT_SIZE = 50000;
+const MAX_TT_SIZE = 500000;
 
 // Optionally avoid storing very shallow nodes to save space:
 const MIN_STORE_DEPTH = 1; // store only nodes with depth >= 1
@@ -19,7 +19,7 @@ function killingMove(i, j, ply) {
 
 let movesSaved = new Array(DEPTH).fill(null);
 let transpositionTable = new Map();
-let currentHash = 0;
+let currentHash = 0n;
 let zobristTable = [];
 const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (2), BOT (1)
 
@@ -236,7 +236,10 @@ function isTacticalMove(i, j, ply) {
 }
 
 
-function quiescenceSearch(alpha, beta, ply) {
+function quiescenceSearch(alpha, beta, ply, qDepth = 6) {
+
+    if (qDepth <= 0) return evaluate(ply);
+
     // Évaluer la position actuelle
     let standPat = evaluate(ply);
 
@@ -255,7 +258,7 @@ function quiescenceSearch(alpha, beta, ply) {
         for (let j = 0; j < N; j++) {
             if (isTacticalMove(i, j, ply)) {
                 if (tryPlace(i, j, ply)) {
-                    let score = -quiescenceSearch(-beta, -alpha, ply === BOT ? PLAYER : BOT);
+                    let score = -quiescenceSearch(-beta, -alpha, ply === BOT ? PLAYER : BOT, qDepth - 1);
                     undoPlace(i, j, ply);
                     if (score >= beta) {
                         return beta;  // Beta cutoff
@@ -299,7 +302,7 @@ function addKiller(depth, move) {
     // Keep only top 2 killers
     if (killerMoves[idx].length > 2) killerMoves[idx].length = 2;
 }
-
+/*
 // Alphabete with Zobrist hashing
 function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     // Si on atteint la profondeur maximale, on passe à la quiescence search
@@ -358,14 +361,25 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
     transpositionTable.set(currentHash, alpha);  // Cache final alpha value
     return alpha;
 }
+*/
 
+// Replace existing alphabeta with this improved version
 function alphabeta(depth, ply, ri, rj, alpha, beta) {
-    console.log('tt size', transpositionTable.size);
+    // Terminal / leaf handling first
+    const poss = getPossibilities(ply);
+    if (depth === 0 || poss === 0) {
+        // use quiescence to avoid horizon effect when depth==0
+        const leafVal = (depth === 0) ? quiescenceSearch(alpha, beta, ply) : evaluate(ply);
+        // store as exact (leaf)
+        ttStore(leafVal, depth, "EXACT", null);
+        return leafVal;
+    }
 
-    // Transposition lookup
+    // Transposition lookup (after leaf check)
     const ttVal = ttLookup(alpha, beta, depth);
     if (ttVal !== null) return ttVal;
 
+    let originalAlpha = alpha;
     let bestVal = -Infinity;
     let bestMove = null;
 
@@ -374,45 +388,59 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
     if (transpositionTable.has(key)) {
         const e = transpositionTable.get(key);
         if (e.bestMove && isPossible(e.bestMove.i, e.bestMove.j, ply)) {
-            const {i,j} = e.bestMove;
-            tryPlace(i,j,ply);
-            const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0],[0], -beta, -alpha);
-            undoPlace(i,j,ply);
-            if (val > bestVal) { bestVal = val; bestMove = {i,j}; }
-            if (bestVal > alpha) { alpha = bestVal; historyTable[i][j] += depth * depth; }
-            if (alpha >= beta) {
-                ttStore(beta, depth, "LOWER", {i,j});
-                addKiller(depth, { i, j });
-                if (killerMoves[depth].length > 2) killerMoves[depth].pop();
+            const { i, j } = e.bestMove;
+            if (tryPlace(i, j, ply)) {
+                const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0], [0], -beta, -alpha);
+                undoPlace(i, j, ply);
+                if (val > bestVal) { bestVal = val; bestMove = { i, j }; }
+                if (bestVal > alpha) { alpha = bestVal; historyTable[i][j] += depth * depth; }
+                if (alpha >= beta) {
+                    // Beta cutoff -> lower bound
+                    ttStore(bestVal, depth, "LOWER", { i, j });
+                    addKiller(depth, { i, j });
                     return beta;
+                }
             }
         }
     }
 
+    // Ordered moves
     const moves = generateMovesOrdered(ply, depth);
     for (const m of moves) {
         const i = m.i, j = m.j;
-        tryPlace(i, j, ply);
-        const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0],[0], -beta, -alpha);
+        if (!tryPlace(i, j, ply)) continue;
+        const val = -alphabeta(depth - 1, ply === BOT ? PLAYER : BOT, [0], [0], -beta, -alpha);
         undoPlace(i, j, ply);
 
-
-        if (val > bestVal) { bestVal = val; bestMove = {i,j}; }
+        if (val > bestVal) {
+            bestVal = val;
+            bestMove = { i, j };
+        }
         if (val > alpha) {
             alpha = val;
             historyTable[i][j] += depth * depth;
         }
         if (alpha >= beta) {
-            ttStore(beta, depth, "LOWER", bestMove);
+            // Beta cutoff -> lower bound
+            ttStore(alpha, depth, "LOWER", bestMove);
             addKiller(depth, { i, j });
             return beta;
         }
     }
 
-    ttStore(alpha, depth, "EXACT", bestMove);
+    // After searching all moves:
+    // If bestVal <= originalAlpha => upper bound (no move improved alpha)
+    // else exact value
+    if (bestVal <= originalAlpha) {
+        ttStore(bestVal, depth, "UPPER", bestMove);
+    } else {
+        ttStore(bestVal, depth, "EXACT", bestMove);
+    }
+
     if (bestMove) { ri[0] = bestMove.i; rj[0] = bestMove.j; }
-        return alpha;
+    return bestVal;
 }
+
 
 // A function that searches for the best game for the BOT and plays it
 function bestPlay() {
@@ -420,7 +448,9 @@ function bestPlay() {
     let j = [0];
 
     alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
-    transpositionTable.clear();
+    console.log("transpositionTable size:", transpositionTable.size);
+
+    //transpositionTable.clear();
     tryPlace(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
 }
@@ -461,17 +491,17 @@ function updateGame(event){
 
     if(isPossible(row, col, PLAYER)){
         if(getPossibilities(PLAYER) === 0)
-            endGame(BOT);
+            {endGame(BOT);transpositionTable.clear();}
 
         placeItem(row, col, PLAYER);
         draw(row, col, PLAYER);
 
         if (getPossibilities(BOT) === 0) {
-            endGame(PLAYER);
+            endGame(PLAYER);transpositionTable.clear();
         } else {
             bestPlay();
             if(getPossibilities(PLAYER) === 0)
-                endGame(BOT);
+                {endGame(BOT);transpositionTable.clear();}
         }
     }
 }
