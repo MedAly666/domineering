@@ -27,6 +27,38 @@ const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (2), BOT (1)
 let killerMoves = Array.from({length: DEPTH + 1}, () => []);
 let historyTable = Array.from({length: N}, () => Array(N).fill(0));
 
+// Toggle for enabling/disabling profiling (disable for pure speed runs)
+const PROFILER_ENABLED = true;
+
+// Profiler object
+let profiler = {
+  nodes: 0,
+  qNodes: 0,
+  ttLookups: 0,
+  ttHits: 0,
+  ttStores: 0,
+  cutoffs: 0,
+  timeMs: 0,
+};
+
+function profilerReset() {
+  profiler.nodes = 0;
+  profiler.qNodes = 0;
+  profiler.ttLookups = 0;
+  profiler.ttHits = 0;
+  profiler.ttStores = 0;
+  profiler.cutoffs = 0;
+  profiler.timeMs = 0;
+  profiler.startTime = performance.now();
+}
+
+function profilerStop() {
+  profiler.timeMs = performance.now() - (profiler.startTime || performance.now());
+}
+
+function printProfiler() {
+  console.table(profiler);
+}
 
 // Generate legal moves then order them by heuristics
 function generateMovesOrdered(ply, depth) {
@@ -129,6 +161,7 @@ function ttKey(hashBigInt) {
 // Lookup in transposition table with LRU refresh.
 // Returns stored usable value or null.
 function ttLookup(alpha, beta, depth) {
+    if (PROFILER_ENABLED) profiler.ttLookups++;
     const key = ttKey(currentHash);
     if (!transpositionTable.has(key)) return null;
 
@@ -144,9 +177,18 @@ function ttLookup(alpha, beta, depth) {
     transpositionTable.set(key, e);
 
     // Interpret flags
-    if (e.flag === "EXACT") return e.value;
-    if (e.flag === "LOWER" && e.value >= beta) return e.value;
-    if (e.flag === "UPPER" && e.value <= alpha) return e.value;
+    if (e.flag === "EXACT"){
+        profiler.ttHits++;
+        return e.value;
+    }
+    if (e.flag === "LOWER" && e.value >= beta){
+        profiler.ttHits++;
+        return e.value;
+    }
+    if (e.flag === "UPPER" && e.value <= alpha){
+        profiler.ttHits++;
+        return e.value;
+    }
 
     // Not usable bound for this alpha/beta window
     return null;
@@ -154,6 +196,8 @@ function ttLookup(alpha, beta, depth) {
 
 // Store entry in TT while enforcing capacity and optional depth threshold.
 function ttStore(value, depth, flag, bestMove) {
+    if (PROFILER_ENABLED) profiler.ttStores++;
+
     // Optionally avoid storing very shallow nodes
     if (depth < MIN_STORE_DEPTH) return;
 
@@ -176,8 +220,6 @@ function ttStore(value, depth, flag, bestMove) {
         }
     }
 }
-
-
 
 // The number of possible plays for the player
 function getPossibilities(ply) {
@@ -237,6 +279,7 @@ function isTacticalMove(i, j, ply) {
 
 
 function quiescenceSearch(alpha, beta, ply, qDepth = 6) {
+    if (PROFILER_ENABLED) profiler.qNodes++;
 
     if (qDepth <= 0) return evaluate(ply);
 
@@ -256,8 +299,7 @@ function quiescenceSearch(alpha, beta, ply, qDepth = 6) {
     // Rechercher uniquement les coups tactiques (comme les captures)
     for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
-            if (isTacticalMove(i, j, ply)) {
-                if (tryPlace(i, j, ply)) {
+            if (tryPlace(i, j, ply)) {
                     let score = -quiescenceSearch(-beta, -alpha, ply === BOT ? PLAYER : BOT, qDepth - 1);
                     undoPlace(i, j, ply);
                     if (score >= beta) {
@@ -266,7 +308,6 @@ function quiescenceSearch(alpha, beta, ply, qDepth = 6) {
                     if (score > alpha) {
                         alpha = score;
                     }
-                }
             }
         }
     }
@@ -365,6 +406,8 @@ function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
 
 // Replace existing alphabeta with this improved version
 function alphabeta(depth, ply, ri, rj, alpha, beta) {
+    if (PROFILER_ENABLED) profiler.nodes++;
+
     // Terminal / leaf handling first
     const poss = getPossibilities(ply);
     if (depth === 0 || poss === 0) {
@@ -396,6 +439,7 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
                 if (bestVal > alpha) { alpha = bestVal; historyTable[i][j] += depth * depth; }
                 if (alpha >= beta) {
                     // Beta cutoff -> lower bound
+                    if (PROFILER_ENABLED) profiler.cutoffs++;
                     ttStore(bestVal, depth, "LOWER", { i, j });
                     addKiller(depth, { i, j });
                     return beta;
@@ -443,14 +487,15 @@ function alphabeta(depth, ply, ri, rj, alpha, beta) {
 
 
 // A function that searches for the best game for the BOT and plays it
-function bestPlay() {
+function searchAndPlay() {
+    profilerReset();
     let i = [0];
     let j = [0];
 
     alphabeta(DEPTH, BOT, i, j, -Infinity, Infinity);
     console.log("transpositionTable size:", transpositionTable.size);
-
-    //transpositionTable.clear();
+    profilerStop();
+    printProfiler();
     tryPlace(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
 }
@@ -499,7 +544,7 @@ function updateGame(event){
         if (getPossibilities(BOT) === 0) {
             endGame(PLAYER);transpositionTable.clear();
         } else {
-            bestPlay();
+            searchAndPlay();
             if(getPossibilities(PLAYER) === 0)
                 {endGame(BOT);transpositionTable.clear();}
         }
