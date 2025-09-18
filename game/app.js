@@ -20,6 +20,7 @@ function killingMove(i, j, ply) {
 let movesSaved = new Array(DEPTH).fill(null);
 let transpositionTable = new Map();
 let currentHash = 0n;
+let zobristSide = 0n;
 let zobristTable = [];
 const MAX_PLAYER_TYPES = 3;  // 0 (empty), PLAYER (2), BOT (1)
 
@@ -96,6 +97,7 @@ function initZobristTable() {
             )
         )
     );
+    zobristSide = rand64BigInt(); // side to move
     currentHash = 0n; // reset
 }
 
@@ -124,6 +126,8 @@ function placeItem(row, col, ply) {
         // Update Zobrist hash for placing the item
         updateZobristHash(row, col, ply);
         updateZobristHash(row + row_m, col + col_m, ply);
+        // flip side token because the player to move changed
+        currentHash ^= zobristSide;
     }
     return true;
 }
@@ -135,9 +139,10 @@ function tryPlace(row, col, ply) {
     return true;
 }
 
-
 // function clears the game
 function undoPlace(row, col, ply) {
+    // flip side token first to revert side-to-move
+    currentHash ^= zobristSide;
     if (ply === PLAYER) {
         // Update Zobrist hash for removing the item
         updateZobristHash(row, col, ply);
