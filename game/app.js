@@ -242,6 +242,63 @@ function getPossibilities(ply) {
     return sum;
 }
 
+// Real moves: sum over runs floor(run_length / 2)
+// For PLAYER (vertical) we scan columns; for BOT (horizontal) we scan rows.
+function realMovesCount(ply) {
+    let count = 0;
+    if (ply === PLAYER) {
+        for (let col = 0; col < N; col++) {
+            let run = 0;
+            for (let row = 0; row < N; row++) {
+                if (board[row][col] === 0) { run++; }
+                else { count += Math.floor(run / 2); run = 0; }
+            }
+            count += Math.floor(run / 2);
+        }
+    } else {
+        for (let row = 0; row < N; row++) {
+            let run = 0;
+            for (let col = 0; col < N; col++) {
+                if (board[row][col] === 0) { run++; }
+                else { count += Math.floor(run / 2); run = 0; }
+            }
+            count += Math.floor(run / 2);
+        }
+    }
+    return count;
+}
+
+// Conservative safe-move estimate: count placements having zero immediate overlapping opponent placements
+function safeMovesEstimate(ply) {
+    const opp = (ply === PLAYER ? BOT : PLAYER);
+    const playerVertical = (ply === PLAYER);
+    let safe = 0;
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            if (!isPossible(i, j, ply)) continue;
+            // the two cells of this placement:
+            const cells = playerVertical ? [[i, j], [i+1, j]] : [[i, j], [i, j+1]];
+            let overlaps = 0;
+            for (const [r, c] of cells) {
+                // enumerate opponent placements that cover (r,c)
+                if (opp === BOT) {
+                    // opponent horizontal placements covering (r,c) start at (r,c-1) or (r,c)
+                    if (c-1 >= 0 && isPossible(r, c-1, opp)) overlaps++;
+                    if (isPossible(r, c, opp)) overlaps++;
+                } else {
+                    // opponent vertical placements covering (r,c) start at (r-1,c) or (r,c)
+                    if (r-1 >= 0 && isPossible(r-1, c, opp)) overlaps++;
+                    if (isPossible(r, c, opp)) overlaps++;
+                }
+                if (overlaps > 0) break;
+            }
+            if (overlaps === 0) safe++;
+        }
+    }
+    return safe;
+}
+
+
 // A function that evaluates the current board state
 function evaluate(ply){
     return getPossibilities(ply) - getPossibilities(ply == BOT ? PLAYER : BOT);
