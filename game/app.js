@@ -61,26 +61,6 @@ function printProfiler() {
   console.table(profiler);
 }
 
-// Generate legal moves then order them by heuristics
-function generateMovesOrdered(ply, depth) {
-    const moves = [];
-    for (let i = 0; i < N; i++) {
-        for (let j = 0; j < N; j++) {
-            if (!isPossible(i, j, ply)) continue;
-            let score = 0;
-            // history heuristic
-            score += historyTable[i][j];
-            // killer heuristic
-            if (killerMoves[depth] && killerMoves[depth].some(k => k.i === i && k.j === j)) score += 100000;
-            // tactical bias
-            if (isTacticalMove(i, j, ply)) score += 500;
-            moves.push({i, j, score});
-        }
-    }
-    moves.sort((a,b) => b.score - a.score);
-    return moves;
-}
-
 // Zobrist: generate 64-bit BigInt random using crypto
 function rand64BigInt() {
     const a = crypto.getRandomValues(new Uint32Array(2));
@@ -298,6 +278,55 @@ function safeMovesEstimate(ply) {
     return safe;
 }
 
+function moveOrderingScore(i, j, ply) {
+    const opp = (ply === PLAYER ? BOT : PLAYER);
+
+    // snapshot current metrics
+    const curRealP = realMovesCount(ply);
+    const curRealO = realMovesCount(opp);
+    const curSafeP = safeMovesEstimate(ply);
+    const curSafeO = safeMovesEstimate(opp);
+    const curMobP = getPossibilities(ply);
+    const curMobO = getPossibilities(opp);
+
+    // try move
+    if (!tryPlace(i, j, ply)) return -Infinity;
+    const newRealP = realMovesCount(ply);
+    const newRealO = realMovesCount(opp);
+    const newSafeP = safeMovesEstimate(ply);
+    const newSafeO = safeMovesEstimate(opp);
+    const newMobP = getPossibilities(ply);
+    const newMobO = getPossibilities(opp);
+    undoPlace(i, j, ply);
+
+    // deltas in the paper's spirit (opponent - player differences)
+    const deltaReal = (newRealO - curRealO) - (newRealP - curRealP);
+    const deltaSafe = (newSafeO - curSafeO) - (newSafeP - curSafeP);
+    const deltaMob = (newMobP - newMobO) - (curMobP - curMobO); // change in mobility advantage
+
+    // tactical is strong positive bias
+    const tacticalBonus = isTacticalMove(i, j, ply) ? 5000 : 0;
+
+    // Combine with tuned weights (start with these; tune later)
+    const score = (1000 * deltaReal) + (200 * deltaSafe) + (10 * deltaMob) + tacticalBonus + historyTable[i][j];
+
+    return score;
+}
+
+function generateMovesOrdered(ply, depth) {
+    const moves = [];
+    for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+            if (!isPossible(i, j, ply)) continue;
+            const score = moveOrderingScore(i, j, ply);
+            if (score === -Infinity) continue;
+            // Add a small jitter to keep sort stable by history
+            moves.push({ i, j, score });
+        }
+    }
+    moves.sort((a, b) => b.score - a.score);
+    return moves;
+}
 
 // A function that evaluates the current board state
 function evaluate(ply){
