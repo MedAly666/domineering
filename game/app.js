@@ -1,5 +1,5 @@
 
-const DEPTH = 5; 
+const DEPTH = 6; 
 const BOT = 1;
 const PLAYER = 2;
 const N = 8;
@@ -278,7 +278,7 @@ function isTacticalMove(i, j, ply) {
 }
 
 
-function quiescenceSearch(alpha, beta, ply, qDepth = DEPTH) {
+function quiescenceSearch(alpha, beta, ply, qDepth = 3) {
     if (PROFILER_ENABLED) profiler.qNodes++;
 
     if (qDepth <= 0) return evaluate(ply);
@@ -343,79 +343,19 @@ function addKiller(depth, move) {
     // Keep only top 2 killers
     if (killerMoves[idx].length > 2) killerMoves[idx].length = 2;
 }
-/*
-// Alphabete with Zobrist hashing
-function alphabetakiller(depth, ply, ri, rj, alpha, beta) {
-    // Si on atteint la profondeur maximale, on passe à la quiescence search
-    if (depth === 0) {
-        return quiescenceSearch(alpha, beta, ply);
-    }
-    
-    // Check if current board state has been encountered before
-    if (transpositionTable.has(currentHash)) {
-        return transpositionTable.get(currentHash);
-    }
-
-    if (depth === 0 || getPossibilities(ply) === 0) {
-        let evalt = evaluate(ply);
-        transpositionTable.set(currentHash, evalt);  // Cache the evaluation
-        return evalt;
-    }
-
-    let fi = 0;
-    let fj = 0;
-    if (movesSaved[depth - 1] !== null) {
-        if (tryPlace(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply)) {
-            let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
-            undoPlace(movesSaved[depth - 1].i, movesSaved[depth - 1].j, ply);
-            if (l > alpha) {
-                alpha = l;
-                ri[0] = movesSaved[depth - 1].i;
-                rj[0] = movesSaved[depth - 1].j;
-                if (alpha >= beta) {
-                    transpositionTable.set(currentHash, beta);  // Store beta cutoff
-                    return beta;
-                }
-            }
-        }
-    }
-
-    for (let i = 0; i < N; i++) {
-        for (let j = 0; j < N; j++) {
-            if (tryPlace(i, j, ply)) {
-                let l = -alphabetakiller(depth - 1, ply === BOT ? PLAYER : BOT, fi, fj, -beta, -alpha);
-                undoPlace(i, j, ply);
-                if (l > alpha) {
-                    alpha = l;
-                    ri[0] = i;
-                    rj[0] = j;
-                    movesSaved[depth - 1] = new killingMove(i, j, ply);
-                    if (alpha >= beta) {
-                        transpositionTable.set(currentHash, beta);  // Store beta cutoff
-                        return beta;
-                    }
-                }
-            }
-        }
-    }
-
-    transpositionTable.set(currentHash, alpha);  // Cache final alpha value
-    return alpha;
-}
-*/
 
 // Replace existing alphabeta with this improved version
 function alphabeta(depth, ply, ri, rj, alpha, beta) {
     if (PROFILER_ENABLED) profiler.nodes++;
 
     // Terminal / leaf handling first
-    const poss = getPossibilities(ply);
-    if (depth === 0 || poss === 0) {
+    if (depth === 0 || getPossibilities(ply) === 0) {
         // use quiescence to avoid horizon effect when depth==0
-        const leafVal = (depth === 0) ? quiescenceSearch(alpha, beta, ply) : evaluate(ply);
+        //const leafVal = (depth === 0) ? quiescenceSearch(alpha, beta, ply) : evaluate(ply);
+        let value = evaluate(ply);
         // store as exact (leaf)
-        ttStore(leafVal, depth, "EXACT", null);
-        return leafVal;
+        ttStore(value, depth, "EXACT", null);
+        return value;
     }
 
     // Transposition lookup (after leaf check)
@@ -496,6 +436,18 @@ function searchAndPlay() {
     console.log("transpositionTable size:", transpositionTable.size);
     profilerStop();
     printProfiler();
+    // Safety: ensure move is legal
+    if (!isPossible(i[0], j[0], BOT)) {
+        console.warn("alphabeta returned illegal move; falling back to first legal move");
+        const moves = generateMovesOrdered(BOT, DEPTH);
+        if (moves.length === 0) {
+            endGame(PLAYER);
+            return;
+        }
+        i[0] = moves[0].i;
+        j[0] = moves[0].j;
+    }
+
     tryPlace(i[0], j[0], BOT);
     draw(i[0],j[0],BOT);
 }
@@ -528,37 +480,10 @@ function isPossible(row, col, ply){
     }
     return true ;
 }
-/*
-// Update the game on every click 
-function updateGame(event){
-    let col = Math.floor(event.pageX / STEP);
-    let row = Math.floor(event.pageY / STEP);
-
-    if(isPossible(row, col, PLAYER)){
-        if(getPossibilities(PLAYER) === 0)
-            {endGame(BOT);transpositionTable.clear();}
-
-        placeItem(row, col, PLAYER);
-        draw(row, col, PLAYER);
-
-        if (getPossibilities(BOT) === 0) {
-            endGame(PLAYER);transpositionTable.clear();
-        } else {
-            searchAndPlay();
-            if(getPossibilities(PLAYER) === 0)
-                {endGame(BOT);transpositionTable.clear();}
-        }
-    }
-}*/
 
 // Flag to avoid user input while the bot is thinking
 let thinking = false;
 
-/*
-  updateGame - handles a player click, plays player's move first,
-  then calls the engine to compute and play the bot's move.
-  Comments in English (commit messages should be in English).
-*/
 function updateGame(event) {
     // If engine is thinking, ignore user clicks
     if (thinking) return;
@@ -568,7 +493,7 @@ function updateGame(event) {
 
     // Check player move legality
     if (!isPossible(row, col, PLAYER)) return;
-    console.log("Player clicked at:");
+    
     // Place player's move and render (placeItem updates board and zobrist)
     placeItem(row, col, PLAYER);
     draw(row, col, PLAYER); // draw should NOT mutate board
@@ -598,7 +523,7 @@ function updateGame(event) {
     }
 }
 
-
+//initZobristTable();
 // initial the board and the canvas
 function initGame(canvas){
     board = Array.from({ length: N }, () => Array(N).fill(0));
@@ -621,6 +546,19 @@ function initGame(canvas){
     ctx.stroke();
     
     initZobristTable();  // Initialize Zobrist hashing table
+
+    // Optional: clear TT at new game start
+    transpositionTable.clear();
+    /*
+    // If BOT should play first, schedule it after the browser rendered the grid
+    if (getPossibilities(BOT) > 0) {
+        thinking = true;
+        try {
+            searchAndPlay(); // synchronous search executed after render
+        } finally {
+            thinking = false;
+        }
+    }*/
 }
 
 initGame(document.querySelector("#gameCanvas"));
